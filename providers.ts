@@ -1,35 +1,39 @@
-export async function callProvider(provider: string, prompt: string): Promise<string> {
-  if (provider === "openai") {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-    const data = await res.json();
-    return data.choices[0]?.message?.content || "No response from OpenAI.";
-  }
+import OpenAI from "openai";
+import Groq from "groq-sdk";
 
-  if (provider === "groq") {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "mixtral-8x7b-32768",
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-    const data = await res.json();
-    return data.choices[0]?.message?.content || "No response from Groq.";
-  }
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-  return "Provider not supported yet.";
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
+
+// Unified wrapper so frontend can just call `runProvider()`
+export async function runProvider(
+  provider: string,
+  prompt: string
+): Promise<string> {
+  try {
+    if (provider === "openai") {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini", // fast + cost effective
+        messages: [{ role: "user", content: prompt }],
+      });
+      return completion.choices[0].message?.content || "";
+    }
+
+    if (provider === "groq") {
+      const completion = await groq.chat.completions.create({
+        model: "mixtral-8x7b-32768", // strong long-text model
+        messages: [{ role: "user", content: prompt }],
+      });
+      return completion.choices[0].message?.content || "";
+    }
+
+    return "❌ Unknown provider";
+  } catch (err: any) {
+    console.error(err);
+    return `Error: ${err.message}`;
+  }
 }
