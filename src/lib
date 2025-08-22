@@ -1,1 +1,39 @@
+import OpenAI from "openai";
+import Groq from "groq-sdk";
 
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
+
+// Unified wrapper so frontend can just call `runProvider()`
+export async function runProvider(
+  provider: string,
+  prompt: string
+): Promise<string> {
+  try {
+    if (provider === "openai") {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini", // fast + cost effective
+        messages: [{ role: "user", content: prompt }],
+      });
+      return completion.choices[0].message?.content || "";
+    }
+
+    if (provider === "groq") {
+      const completion = await groq.chat.completions.create({
+        model: "mixtral-8x7b-32768", // strong long-text model
+        messages: [{ role: "user", content: prompt }],
+      });
+      return completion.choices[0].message?.content || "";
+    }
+
+    return "❌ Unknown provider";
+  } catch (err: any) {
+    console.error(err);
+    return `Error: ${err.message}`;
+  }
+}
