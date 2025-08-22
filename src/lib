@@ -1,39 +1,43 @@
-import OpenAI from "openai";
-import Groq from "groq-sdk";
+// src/lib/providers.ts
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+export type TaskType = "draft" | "polish";
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
-
-// Unified wrapper so frontend can just call `runProvider()`
-export async function runProvider(
-  provider: string,
-  prompt: string
-): Promise<string> {
-  try {
-    if (provider === "openai") {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini", // fast + cost effective
+export async function getProvider(task: TaskType, prompt: string): Promise<string> {
+  if (task === "draft") {
+    // Example: Call Groq API
+    const response = await fetch("https://api.groq.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama2-70b-chat", // Groq’s model
         messages: [{ role: "user", content: prompt }],
-      });
-      return completion.choices[0].message?.content || "";
-    }
+      }),
+    });
 
-    if (provider === "groq") {
-      const completion = await groq.chat.completions.create({
-        model: "mixtral-8x7b-32768", // strong long-text model
-        messages: [{ role: "user", content: prompt }],
-      });
-      return completion.choices[0].message?.content || "";
-    }
-
-    return "❌ Unknown provider";
-  } catch (err: any) {
-    console.error(err);
-    return `Error: ${err.message}`;
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content ?? "No response from Groq";
   }
+
+  if (task === "polish") {
+    // Example: Call OpenAI API
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini", // small but capable model
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content ?? "No response from OpenAI";
+  }
+
+  return "Unknown task type";
 }
