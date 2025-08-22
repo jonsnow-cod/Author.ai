@@ -1,24 +1,28 @@
 // src/app/api/generate/route.ts
 import { NextResponse } from "next/server";
-import { getProvider } from "@/lib/providers";
+import { getProvider, TaskType } from "../../../lib/providers";
 
 export async function POST(req: Request) {
   try {
-    const { task, prompt } = await req.json();
+    const body = await req.json();
+
+    const task = body.task as TaskType; // "draft" or "polish"
+    const prompt = body.prompt as string;
+
     if (!task || !prompt) {
       return NextResponse.json(
-        { error: "Task and prompt are required" },
+        { error: "Missing required fields: task, prompt" },
         { status: 400 }
       );
     }
 
-    const provider = getProvider(task);
-    const result = await provider(prompt);
+    const result = await getProvider(task, prompt);
 
     return NextResponse.json({ result });
   } catch (error: any) {
+    console.error("API error:", error);
     return NextResponse.json(
-      { error: error.message || "Unknown error" },
+      { error: "Something went wrong", details: error.message },
       { status: 500 }
     );
   }
